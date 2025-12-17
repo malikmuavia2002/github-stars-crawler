@@ -1,6 +1,9 @@
 name: GitHub Stars Crawler
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   crawl:
@@ -10,45 +13,64 @@ jobs:
       postgres:
         image: postgres:15
         env:
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
-      - uses: actions/checkout@v3
+      # STEP 1: Repo checkout
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      # STEP 2: Python setup
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
+      # STEP 3: Install Python deps
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Setup schema
+      # STEP 4: Install postgres client
+      - name: Install PostgreSQL client
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-          psql -h localhost -U postgres -f sql/schema.sql
+
+      # STEP 5: Create DB schema  ✅ FIX HERE (-U postgres)
+      - name: Setup database schema
+        run: |
+          psql -h localhost -U postgres -d postgres -f sql/schema.sql
         env:
           PGPASSWORD: postgres
 
-      - name: Crawl GitHub stars
+      # STEP 6: Run crawler  ✅
+      - name: Run GitHub crawler
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python crawler/crawler.py
+        run: |
+          python crawler/crawler.py
 
+      # STEP 7: Export CSV  ✅ FIX HERE (-U postgres)
       - name: Export CSV
         run: |
-          psql -h localhost -U postgres -c "\copy repositories TO 'repos.csv' CSV HEADER"
+          psql -h localhost -U postgres -d postgres -c "\copy repositories TO 'repos.csv' CSV HEADER"
         env:
           PGPASSWORD: postgres
 
-      - uses: actions/upload-artifact@v3
+      # STEP 8: Upload artifact  ✅ FIX HERE (v4)
+      - name: Upload CSV artifact
+        uses: actions/upload-artifact@v4
         with:
           name: stars-data
           path: repos.csv
