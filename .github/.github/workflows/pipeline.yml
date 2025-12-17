@@ -1,6 +1,9 @@
 name: GitHub Stars Crawler
 
-on: push
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   crawl:
@@ -22,8 +25,7 @@ jobs:
           --health-retries=5
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -40,26 +42,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -U postgres; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+        env:
+          PGPASSWORD: postgres
+
       - name: Setup database schema
         run: |
           psql -h localhost -U postgres -d postgres -f sql/schema.sql
         env:
           PGPASSWORD: postgres
 
-      - name: Run GitHub crawler
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python crawler/crawler.py
-
-      - name: Export CSV
-        run: |
-          psql -h localhost -U postgres -d postgres -c "\copy repositories TO 'repos.csv' CSV HEADER"
-        env:
-          PGPASSWORD: postgres
-
-      - name: Upload CSV artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: stars-data
-          path: repos.csv
+      - name: Run
