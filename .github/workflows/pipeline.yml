@@ -1,9 +1,9 @@
-name: Schema Test
+name: Python DB Test
 
 on: [push]
 
 jobs:
-  schema-test:
+  python-db-test:
     runs-on: ubuntu-latest
 
     services:
@@ -22,19 +22,20 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Postgres client
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Setup schema
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-
-      - name: Create schema
-        run: |
           psql -h localhost -U postgres -f sql/schema.sql
         env:
           PGPASSWORD: postgres
 
-      - name: Verify table
-        run: |
-          psql -h localhost -U postgres -c "\dt"
-        env:
-          PGPASSWORD: postgres
+      - name: Run Python DB test
+        run: python crawler/test_db.py
