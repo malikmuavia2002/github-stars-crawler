@@ -1,9 +1,6 @@
 name: GitHub Stars Crawler
 
-on:
-  push:
-    branches:
-      - main
+on: push
 
 jobs:
   crawl:
@@ -25,50 +22,42 @@ jobs:
           --health-retries=5
 
     steps:
-      # STEP 1: Repo checkout
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # STEP 2: Python setup
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      # STEP 3: Install Python deps
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # STEP 4: Install postgres client
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      # STEP 5: Create DB schema  ✅ FIX HERE (-U postgres)
       - name: Setup database schema
         run: |
           psql -h localhost -U postgres -d postgres -f sql/schema.sql
         env:
           PGPASSWORD: postgres
 
-      # STEP 6: Run crawler  ✅
       - name: Run GitHub crawler
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python crawler/crawler.py
 
-      # STEP 7: Export CSV  ✅ FIX HERE (-U postgres)
       - name: Export CSV
         run: |
           psql -h localhost -U postgres -d postgres -c "\copy repositories TO 'repos.csv' CSV HEADER"
         env:
           PGPASSWORD: postgres
 
-      # STEP 8: Upload artifact  ✅ FIX HERE (v4)
       - name: Upload CSV artifact
         uses: actions/upload-artifact@v4
         with:
