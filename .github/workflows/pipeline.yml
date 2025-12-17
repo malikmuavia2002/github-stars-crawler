@@ -1,9 +1,9 @@
-name: Postgres Test
+name: Schema Test
 
 on: [push]
 
 jobs:
-  test-db:
+  schema-test:
     runs-on: ubuntu-latest
 
     services:
@@ -22,10 +22,19 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Test Postgres connection
+      - name: Install Postgres client
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-          psql -h localhost -U postgres -c "\l"
+
+      - name: Create schema
+        run: |
+          psql -h localhost -U postgres -f sql/schema.sql
+        env:
+          PGPASSWORD: postgres
+
+      - name: Verify table
+        run: |
+          psql -h localhost -U postgres -c "\dt"
         env:
           PGPASSWORD: postgres
