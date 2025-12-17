@@ -1,9 +1,9 @@
-name: Python DB Test
+name: GitHub Stars Crawler
 
 on: [push]
 
 jobs:
-  python-db-test:
+  crawl:
     runs-on: ubuntu-latest
 
     services:
@@ -37,5 +37,18 @@ jobs:
         env:
           PGPASSWORD: postgres
 
-      - name: Run Python DB test
-        run: python crawler/test_db.py
+      - name: Crawl GitHub stars
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python crawler/crawler.py
+
+      - name: Export CSV
+        run: |
+          psql -h localhost -U postgres -c "\copy repositories TO 'repos.csv' CSV HEADER"
+        env:
+          PGPASSWORD: postgres
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: stars-data
+          path: repos.csv
